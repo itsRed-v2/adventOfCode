@@ -1,0 +1,1 @@
+console.log((await import("../input.js")).input.split("\n").map(line => line.split(",").map(range => range.split("-").map(strVal => parseInt(strVal)))).map(pairs => pairs[0][0] <= pairs[1][1] && pairs[0][1] >= pairs[1][0]).reduce((accumulator, isOverlapping) => accumulator + (isOverlapping ? 1 : 0)));
