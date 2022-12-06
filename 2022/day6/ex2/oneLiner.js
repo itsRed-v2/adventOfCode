@@ -1,0 +1,1 @@
+console.log((input => input.split("").findIndex((_char, i) => i < 14 ? false : (sequence => !sequence.split("").find((_char, seqIndex) => sequence.indexOf(sequence[seqIndex]) !== seqIndex))(input.slice(i - 14, i))))((await import("../input.js")).input));
