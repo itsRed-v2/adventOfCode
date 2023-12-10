@@ -17,9 +17,15 @@ const periods = startingNodes.map(node => getTravelDistance(node));
 const values = [...periods];
 console.log("Periods calculated.");
 
+let largestPeriodIndex = indexOfLargest(periods);
 while (!allEqual(values)) {
-    let i = getSmallest(values);
-    values[i] += periods[i];
+    values[largestPeriodIndex] += periods[largestPeriodIndex];
+
+    for (let i = 0; i < periods.length; i++) {
+        while (values[i] < values[largestPeriodIndex]) {
+            values[i] += periods[i];
+        }
+    }
 }
 
 console.log(values[0]);
@@ -31,12 +37,12 @@ function allEqual(list: number[]) {
     return list.every(v => v === value);
 }
 
-function getSmallest(list: number[]) {
-    let smallest = 0;
+function indexOfLargest(list: number[]) {
+    let largest = 0;
     for (let i = 1; i < list.length; i++) {
-        if (list[smallest] > list[i]) smallest = i;
+        if (list[i] > list[largest]) largest = i;
     }
-    return smallest;
+    return largest;
 }
 
 function getTravelDistance(node: string) {
