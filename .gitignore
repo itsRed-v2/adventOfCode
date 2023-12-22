@@ -1,5 +1,8 @@
 __pycache__
 node_modules
 
+# macOS things
+.DS_Store
+
 # compiled typescript code
 dist/
