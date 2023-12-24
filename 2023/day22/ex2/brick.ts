@@ -22,8 +22,8 @@ class Vector {
 }
 
 class Brick {
-	start: Vector;
-	end: Vector;
+	readonly start: Vector;
+	readonly end: Vector;
 	readonly axis: Axis | undefined;
 	readonly id: number;
 
@@ -64,21 +64,36 @@ class Brick {
 		}
 	}
 
-	moveDown() {
-		this.start = this.start.down();
-		this.end = this.end.down();
-	}
-
-	clone() {
-		return new Brick(this.start, this.end, this.id);
+	movedDown() {
+		return new Brick(this.start.down(), this.end.down(), this.id);
 	}
 }
 
 class World {
-	bricks: Brick[];
+	private bricks: Brick[];
+	private space: (Brick | undefined)[][][];
 
 	constructor(bricks: Brick[]) {
 		this.bricks = bricks;
+
+		// Finding the boundaries of space
+		const boundary = this.bricks.reduce((boundary, brick) => {
+			return new Vector(
+				Math.max(boundary.x, brick.end.x),
+				Math.max(boundary.y, brick.end.y),
+				Math.max(boundary.z, brick.end.z),
+			);
+		}, new Vector(0, 0, 0));
+
+		// initialization of 3d empty array;
+		this.space = new Array(boundary.x + 1).fill(0).map(e => {
+			return new Array(boundary.y + 1).fill(0).map(e => {
+				return new Array(boundary.z + 1);
+			});
+		});
+
+		// Adding bricks to the array
+		this.bricks.forEach(brick => this.addBrickToSpace(brick));
 	}
 
 	listBricksRelative(brick: Brick, position: 'up' | 'down') {
@@ -86,7 +101,7 @@ class World {
 
 		for (let pos of brick.positionsIterator()) {
 			pos = (position === 'up') ? pos.up() : pos.down();
-			const adjacentBrick = this.brickAt(pos);
+			const adjacentBrick = this.getCell(pos);
 			if (adjacentBrick !== undefined && adjacentBrick !== brick)
 				neighborBricks.add(adjacentBrick);
 		}
@@ -94,23 +109,32 @@ class World {
 		return neighborBricks;
 	}
 
+	clone() {
+		return new World(this.bricks.map(b => b));
+	}
+
+	removeBrick(brick: Brick) {
+		this.removeBrickFromSpace(brick);
+		this.bricks.splice(this.bricks.indexOf(brick), 1);
+	}
+
+	getBricks() {
+		return [...this.bricks];
+	}
+
 	compressBricks() {
-		this.bricks.sort((a, b) => a.end.z - b.end.z);
+		this.bricks.sort((a, b) => a.start.z - b.start.z);
 		let modifiedCount = this.bricks.reduce((modifiedCount, brick) => {
 			return this.processFall(brick) ? modifiedCount + 1 : modifiedCount;
 		}, 0);
 		return modifiedCount;
 	}
 
-	clone() {
-		return new World(this.bricks.map(b => b.clone()));
-	}
-
 	private processFall(brick: Brick) {
 		if (!this.canFall(brick)) return false;
 
 		while (this.canFall(brick))
-			brick.moveDown();
+			brick = this.moveBrickDown(brick)
 		return true;
 	}
 
@@ -121,9 +145,30 @@ class World {
 		return bricksBelow.size === 0;
 	}
 
-	private brickAt(pos: Vector) {
-		let lowestCandidateIndex = this.bricks.findIndex(brick => brick.end.z >= pos.z);
-		return this.bricks.slice(lowestCandidateIndex).find(brick => brick.containsPos(pos));
+	private moveBrickDown(brick: Brick) {
+		this.removeBrickFromSpace(brick);
+		const newBrick = brick.movedDown();
+		this.bricks[this.bricks.indexOf(brick)] = newBrick;
+		this.addBrickToSpace(newBrick);
+		return newBrick;
+	}
+
+	private addBrickToSpace(brick: Brick) {
+		for (const pos of brick.positionsIterator())
+			this.setCell(pos, brick);
+	}
+
+	private removeBrickFromSpace(brick: Brick) {
+		for (const pos of brick.positionsIterator())
+			this.setCell(pos, undefined);
+	}
+
+	private setCell(pos: Vector, value: Brick | undefined) {
+		this.space[pos.x][pos.y][pos.z] = value;
+	}
+
+	private getCell(pos: Vector) {
+		return this.space[pos.x][pos.y][pos.z];
 	}
 
 }

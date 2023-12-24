@@ -13,9 +13,9 @@ world.compressBricks();
 console.log("Bricks are compressed.");
 
 let fallingCount = 0;
-world.bricks.forEach((brick, index) => {
+world.getBricks().forEach((brick, index) => {
 	const fallenBrickCount = disintegrateAndCountFalling(brick, world);
-	console.log("Removed brick", index + 1, "/", world.bricks.length, ";  ", fallenBrickCount, "bricks fell.");
+	// console.log("Removed brick", index + 1, "/", bricks.length, ";", fallenBrickCount, "bricks fell.");
 	fallingCount += fallenBrickCount;
 });
 console.log("Result:", fallingCount);
@@ -23,9 +23,8 @@ console.log("Result:", fallingCount);
 // Functions
 
 function disintegrateAndCountFalling(brick: Brick, world: World): number {
-	const brickIndex = world.bricks.indexOf(brick);
 	world = world.clone();
-	world.bricks.splice(brickIndex, 1);
+	world.removeBrick(brick);
 	const fallenBrickCount = world.compressBricks();
 	return fallenBrickCount;
 }
