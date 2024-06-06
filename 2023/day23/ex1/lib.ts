@@ -1,5 +1,3 @@
-type Tile = "." | "#" | ">" | "v";
-
 class Vector {
     x: number;
     y: number;
@@ -34,6 +32,8 @@ class Vector {
     }
 }
 
+type Tile = "." | "#" | ">" | "v";
+
 type HeuristicFunction = (pos: Vector) => number;
 
 class PathNode {
@@ -67,9 +67,11 @@ class PathNode {
 
     getNeighbors() {
         return this.neighborPos()
-            .filter((pos) => this.inWorld(pos))
-            .filter((pos) => this.world[pos.y][pos.x] !== "#")
-            .map((pos) => new PathNode(pos, this, this.heuristic, this.world));
+            .filter(pos => this.inWorld(pos))
+            .filter(pos => this.world[pos.y][pos.x] !== "#")
+            .filter(pos => !(pos.y < this.position.y && this.world[pos.y][pos.x] === "v"))
+            .filter(pos => !(pos.x < this.position.x && this.world[pos.y][pos.x] === ">"))
+            .map(pos => new PathNode(pos, this, this.heuristic, this.world));
     }
 
     private neighborPos() {
@@ -88,54 +90,22 @@ class PathNode {
     }
 }
 
-class NodeSet {
+class NodeList {
     nodes: PathNode[] = [];
 
-    insert(node: PathNode) {
-        const previous = this.getNodeAt(node.position);
-        if (!previous) {
-            this.nodes.push(node);
-        } else if (compareNodes(node, previous) > 0) {
-            this.nodes[this.nodes.indexOf(previous)] = node;
-        }
+    add(node: PathNode) {
+        this.nodes.push(node);
     }
 
     containsPos(pos: Vector) {
         return this.nodes.some((node) => node.position.equals(pos));
     }
 
-    getNodeAt(pos: Vector) {
-        for (const n of this.nodes) {
-            if (n.position.equals(pos)) {
-                return n;
-            }
-        }
-    }
-
-    getWorstNode() {
-        this.nodes.sort(compareNodes);
-        return this.nodes.pop();
-    }
-
-    size() {
-        return this.nodes.length;
-    }
-
-    removeNode(node: PathNode) {
-        this.nodes.splice(this.nodes.indexOf(node), 1);
-    }
-
     clone() {
-        const duplicate = new NodeSet();
+        const duplicate = new NodeList();
         duplicate.nodes = [...this.nodes];
         return duplicate;
     }
 }
 
-function compareNodes(a: PathNode, b: PathNode) {
-    const heuristicDiff = a.hcost - b.hcost;
-    if (heuristicDiff !== 0) return heuristicDiff;
-    return a.gcost - b.gcost;
-}
-
-export { Tile, Vector, PathNode, NodeSet, compareNodes };
+export { Tile, Vector, PathNode, NodeList };
