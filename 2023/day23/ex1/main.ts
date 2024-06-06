@@ -1,4 +1,4 @@
-import { example as input } from "../input.js";
+import { input } from "../input.js";
 import { NodeSet, PathNode, Tile, Vector } from "./lib.js";
 
 const world = input.split("\n").map((line) => line.split("")) as Tile[][];
@@ -10,8 +10,8 @@ function heuristic(pos: Vector) {
     return Math.abs(pos.x - goalPos.x) + Math.abs(pos.y - goalPos.y);
 }
 
-const OPEN = new NodeSet();
-const CLOSED = new NodeSet();
+let greatestBranchId = 1;
+let stuckCounter = 0;
 
 const startingNode = new PathNode(
     new Vector(1, 0),
@@ -19,59 +19,58 @@ const startingNode = new PathNode(
     heuristic,
     world,
 );
-OPEN.insert(startingNode);
 
 console.log("\n".repeat(world.length));
 
-while (OPEN.size() > 0) {
-    const current = OPEN.getWorstNode() as PathNode;
-    CLOSED.insert(current);
+const results = await explore(new NodeSet(), startingNode, greatestBranchId);
+console.log("=== DONE ===")
+console.log("distances traveled:", results.sort((a, b) => b - a));
+console.log("Stuck", stuckCounter, "times.");
+
+async function explore(closed: NodeSet, current: PathNode, branch: number): Promise<number[]> {
+    // draw(world, closed, current.position, branch);
+    // await sleep(10);
+
+    // const current = open.getWorstNode() as PathNode;
+    closed.insert(current);
     // console.log('Current:', current.position);
 
     if (current.position.equals(goalPos)) {
-        console.log("Found:");
-        console.log(current.position);
-        console.log("gcost / hcost |", current.gcost, "/", current.hcost);
-        break;
+        return [current.gcost];
     }
 
-    for (const neighbor of current.getNeighbors()) {
-        if (CLOSED.containsPos(neighbor.position)) {
-            const previousNode = CLOSED.getNodeAt(
-                neighbor.position,
-            ) as PathNode;
-            if (
-                neighbor.gcost > previousNode.gcost &&
-                neighbor.hcost < current.hcost &&
-                current.parent !== previousNode
-            ) {
-                CLOSED.removeNode(neighbor);
-                OPEN.insert(neighbor);
-                // console.log("replaced node at:", neighbor.position);
-            }
-        } else {
-            OPEN.insert(neighbor);
-        }
+    const neighbors = current
+        .getNeighbors()
+        .filter((node) => !closed.containsPos(node.position));
+    if (neighbors.length === 0) {
+        stuckCounter++;
+        return [];
     }
 
-    draw(current.position);
-    await sleep(50);
+    let results = await explore(closed.clone(), neighbors.shift() as PathNode, branch);
+
+    for (const n of neighbors) {
+        results = results.concat(await explore(closed.clone(), n, ++greatestBranchId));
+    }
+
+    return results;
 }
 
-function draw(pos: Vector) {
+function draw(world: Tile[][], closed: NodeSet, currentPos: Vector, branch: number) {
     const canvas: string[][] = world.map((row) => [...row]);
-    for (const closedNode of CLOSED.nodes) {
+
+    for (const closedNode of closed.nodes) {
         const pos = closedNode.position;
         canvas[pos.y][pos.x] = "\x1b[0;31m0\x1b[0m";
     }
-    for (const openNode of OPEN.nodes) {
-        const pos = openNode.position;
-        canvas[pos.y][pos.x] = "\x1b[0;32mo\x1b[0m";
-    }
+
+    canvas[currentPos.y][currentPos.x] = "\x1b[0;32mo\x1b[0m";
+
     // console.log('\n');
-    console.log(`\x1b[${canvas.length + 2}A`);
+    console.log(`\x1b[${canvas.length + 3}A`);
     console.log(canvas.map((row) => row.join("")).join("\n"));
-    console.log("current pos:", pos);
+    console.log("current pos:", currentPos);
+    console.log("Branch:", branch);
 }
 
 function sleep(millis: number) {

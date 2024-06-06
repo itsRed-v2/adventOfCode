@@ -124,6 +124,12 @@ class NodeSet {
     removeNode(node: PathNode) {
         this.nodes.splice(this.nodes.indexOf(node), 1);
     }
+
+    clone() {
+        const duplicate = new NodeSet();
+        duplicate.nodes = [...this.nodes];
+        return duplicate;
+    }
 }
 
 function compareNodes(a: PathNode, b: PathNode) {
