@@ -40,25 +40,20 @@ class PathNode {
     readonly position: Vector;
     readonly symbol: Tile;
     readonly gcost: number;
-    readonly hcost: number;
     readonly parent: PathNode | undefined;
 
-    readonly heuristic: HeuristicFunction;
     readonly world: Tile[][];
 
     constructor(
         position: Vector,
         parent: PathNode | undefined,
-        heurisctic: HeuristicFunction,
         world: Tile[][],
     ) {
         this.position = position;
         this.symbol = world[position.y][position.x];
         this.parent = parent;
         this.gcost = parent ? parent.gcost + 1 : 0;
-        this.hcost = heurisctic(position);
 
-        this.heuristic = heurisctic;
         this.world = world;
 
         if (!".>v".includes(this.symbol))
@@ -69,7 +64,7 @@ class PathNode {
         return this.neighborPos()
             .filter(pos => this.inWorld(pos))
             .filter(pos => this.world[pos.y][pos.x] !== "#")
-            .map(pos => new PathNode(pos, this, this.heuristic, this.world));
+            .map(pos => new PathNode(pos, this, this.world));
     }
 
     private neighborPos() {
@@ -88,17 +83,28 @@ class PathNode {
     isAtCrossroad() {
         let accessibleNeighbors = Vector.directions.filter(dir => {
             const neighbor = this.position.add(dir);
-            return this.world[neighbor.y][neighbor.x] !== "#";
+            return this.world[neighbor.y]?.[neighbor.x] !== "#";
         });
         return accessibleNeighbors.length >= 3;
     }
 
     getPreviousCrossroad() {
         let current = this.parent;
-        while (current && !current.isAtCrossroad()) {
+        while (current?.parent && !current.isAtCrossroad()) {
             current = current.parent;
         }
+        if (current?.position.equals(this.position)) return undefined;
         return current;
+    }
+
+    traceBridge() {
+        const bridge: Vector[] = [];
+        let current = this.parent;
+        while (current && !current.isAtCrossroad()) {
+            bridge.push(current.position);
+            current = current.parent;
+        }
+        return bridge;
     }
 }
 
@@ -121,6 +127,14 @@ class NodeList {
 
     isEmpty() {
         return this.nodes.length === 0;
+    }
+
+    pop() {
+        return this.nodes.pop();
+    }
+
+    getNodes() {
+        return [...this.nodes];
     }
 }
 

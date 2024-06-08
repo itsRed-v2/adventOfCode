@@ -1,80 +1,115 @@
 import { example as input } from "../input.js";
 import { NodeList, PathNode, Tile, Vector } from "./lib.js";
 
+type NodePair = [PathNode, PathNode];
+
+interface TileBridge {
+    pos1: Vector,
+    pos2: Vector,
+    length: number
+}
+
 const DEBUG = true;
 
-// const input = DEBUG ? example : realInput;
 const world = input.split("\n").map((line) => line.split("")) as Tile[][];
 const goalPos = new Vector(world[0].length - 2, world.length - 1);
 
-if (DEBUG) {
+const bridges = await findBridges();
+console.log("Bridges:");
+bridges.forEach(bridge => console.log(bridge.pos1, bridge.pos2, "Length", bridge.length));
+
+async function explore(current: Vector, path: TileBridge[], closed: Vector[]) {
+
+}
+
+async function findBridges(): Promise<TileBridge[]> {
     console.log("\n".repeat(world.length));
-}
 
-function heuristic(pos: Vector) {
-    // Manhattan distance
-    return Math.abs(pos.x - goalPos.x) + Math.abs(pos.y - goalPos.y);
-}
+    const startingNode = new PathNode(new Vector(1, 0), undefined, world);
 
-const startingNode = new PathNode(new Vector(1, 0), undefined, heuristic, world);
+    const OPEN = new NodeList();
+    OPEN.add(startingNode);
+    const CLOSED = new NodeList();
 
-let callDepth = 0;
+    const bridges: NodePair[] = [];
 
-const results = await explore(new NodeList(), startingNode);
-results.sort((a, b) => b - a);
-
-console.log("RESULTS:")
-console.log("Distances traveled:", results);
-console.log("Longest path length:", results[0]);
-
-async function explore(closed: NodeList, current: PathNode): Promise<number[]> {
-    callDepth++;
-
-    let neighbors: PathNode[] = [];
-    do {
-        if (DEBUG) {
-            draw(world, closed, current.position, callDepth);
-            await sleep(20);
-        }
-
-        closed.add(current);
+    while (!OPEN.isEmpty()) {
+        const current = OPEN.pop() as PathNode;
+        CLOSED.add(current);
 
         if (current.position.equals(goalPos)) {
-            return [current.gcost];
+            await createBridge(current, bridges);
         }
 
-        neighbors = current
-            .getNeighbors()
-            .filter(node => !closed.containsPos(node.position));
+        for (const neighbor of current.getNeighbors()) {
+            if (!CLOSED.containsPos(neighbor.position))
+                OPEN.add(neighbor);
 
-        if (neighbors.length === 1) {
-            current = neighbors[0];
+            if (neighbor.isAtCrossroad()) {
+                await createBridge(neighbor, bridges);
+            }
         }
-    } while (neighbors.length === 1);
 
-
-    let results: number[] = [];
-    for (const n of neighbors) {
-        results = results.concat(await explore(closed.clone(), n));
+        if (DEBUG) {
+            draw(world, OPEN, CLOSED);
+            await sleep(20);
+        }
     }
-    callDepth--;
-    return results;
+
+    drawBridges(world, bridges);
+    return bridges.map(nodeBridge => ({
+        pos1: nodeBridge[0].position,
+        pos2: nodeBridge[1].position,
+        length: nodeBridge[0].traceBridge().length
+    }));
 }
 
-function draw(world: Tile[][], closed: NodeList, currentPos: Vector, callDepth: number) {
+async function createBridge(start: PathNode, bridgeList: NodePair[]) {
+    let end = start.getPreviousCrossroad();
+    if (end) {
+        const bridge: NodePair = [start, end];
+        bridgeList.push(bridge);
+        if (DEBUG) {
+            drawBridges(world, [bridge]);
+            await sleep(500);
+        }
+        return bridge;
+    }
+}
+
+function draw(world: Tile[][], open: NodeList, closed: NodeList) {
     const canvas: string[][] = world.map((row) => [...row]);
 
-    for (const closedNode of closed.nodes) {
+    for (const closedNode of closed.getNodes()) {
         const pos = closedNode.position;
         canvas[pos.y][pos.x] = "\x1b[0;31mo\x1b[0m";
     }
 
-    canvas[currentPos.y][currentPos.x] = "\x1b[0;32m0\x1b[0m";
+    for (const openNode of open.getNodes()) {
+        const pos = openNode.position;
+        canvas[pos.y][pos.x] = "\x1b[0;32m0\x1b[0m";
+    }
 
-    console.log(`\x1b[${canvas.length + 3}A`);
+    console.log(`\x1b[${canvas.length + 1}A`);
     console.log(canvas.map((row) => row.join("")).join("\n"));
-    console.log("current pos:", currentPos);
-    console.log("call depth:", callDepth);
+}
+
+function drawBridges(world: Tile[][], bridges: NodePair[]) {
+    const canvas: string[][] = world.map((row) => [...row]);
+
+    for (const [start, _end] of bridges) {
+        for (const pos of start.traceBridge()) {
+            canvas[pos.y][pos.x] = "\x1b[0;33mo\x1b[0m";
+        }
+    }
+
+    for (const [start, end] of bridges) {
+        canvas[start.position.y][start.position.x] = "\x1b[0;31m0\x1b[0m";
+        canvas[end.position.y][end.position.x] = "\x1b[0;31m0\x1b[0m";
+    }
+
+    console.log(`\x1b[${canvas.length + 1}A`);
+    console.log(canvas.map((row) => row.join("")).join("\n"));
 }
 
 function sleep(millis: number) {
