@@ -30,11 +30,11 @@ class Vector {
     subtract(other: Vector) {
         return new Vector(this.x - other.x, this.y - other.y);
     }
+
+    serialize() {
+        return `x${this.x}y${this.y}`;
+    }
 }
-
-type Tile = "." | "#" | ">" | "v";
-
-type HeuristicFunction = (pos: Vector) => number;
 
 class PathNode {
     readonly position: Vector;
@@ -110,13 +110,16 @@ class PathNode {
 
 class NodeList {
     nodes: PathNode[] = [];
+    posMap: { [key: string]: Vector } = {};
 
     add(node: PathNode) {
         this.nodes.push(node);
+        this.posMap[node.position.serialize()] = node.position;
     }
 
     containsPos(pos: Vector) {
-        return this.nodes.some((node) => node.position.equals(pos));
+        // return this.nodes.some((node) => node.position.equals(pos));
+        return this.posMap[pos.serialize()] !== undefined;
     }
 
     clone() {
@@ -138,4 +141,12 @@ class NodeList {
     }
 }
 
-export { Tile, Vector, PathNode, NodeList };
+function sleep(millis: number) {
+    return new Promise(res => setTimeout(res, millis));
+}
+
+type Tile = "." | "#" | ">" | "v";
+type NodePair = [PathNode, PathNode];
+type Line = [Vector, Vector];
+
+export { Tile, Vector, PathNode, NodeList, NodePair, Line, sleep };
