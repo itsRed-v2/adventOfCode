@@ -7,21 +7,6 @@
 
 using namespace std;
 
-void visualize(const vector<string> &world, const set<pair<int, int>> &visitedPositions) {
-    int width { (int) world[0].length() };
-    int height { (int) world.size() };
-
-    for (int y = 0; y < height; y++) {
-        string row { world[y] };
-        for (int x = 0; x < width; x++) {
-            if (visitedPositions.contains(pair{x, y})) {
-                row[x] = 'X';
-            }
-        }
-        cout << row << endl;
-    }
-}
-
 bool isOutOfBounds(int index, int arraySize) {
     return index < 0 || index >= arraySize;
 }
@@ -76,11 +61,6 @@ int main() {
             guardY = frontY;
             visitedPositions.emplace(guardX, guardY);
         }
-
-        /*
-        visualize(world, visitedPositions);
-        cout << endl;
-        */
     }
 
     cout << "Visited positions count: " << visitedPositions.size() << endl;

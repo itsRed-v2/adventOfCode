@@ -113,7 +113,7 @@ int main() {
                 dir.rotate90Degrees();
             } else {
                 guard = front;
-                if (positions.contains(pair{guard, dir})) {
+                if (positions.find(pair{guard, dir}) != positions.end()) {
                     obstaclesFound++;
                     break;
                 }
