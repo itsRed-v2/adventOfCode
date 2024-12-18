@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace std;
 
@@ -47,7 +48,6 @@ struct Node {
     Vec pos;
     Vec dir;
     int cost;
-    vector<Node> parents;
 
     array<Node, 3> getNeighbors() const {
         return {
@@ -55,19 +55,16 @@ struct Node {
                 .pos = pos + dir,
                 .dir = dir,
                 .cost = cost + 1,
-                .parents = vector { *this }
             },
             Node{
                 .pos = pos,
                 .dir = dir.rotateClockwise(),
                 .cost = cost + 1000,
-                .parents = vector { *this }
             },
             Node{
                 .pos = pos,
                 .dir = dir.rotateCounterClockwise(),
                 .cost = cost + 1000,
-                .parents = vector { *this }
             }
         };
     }
@@ -81,7 +78,8 @@ bool operator==(const Node &lhs, const Node &rhs) {
     return lhs.pos == rhs.pos && lhs.dir == rhs.dir;
 }
 
-struct NodeHash {
+template<>
+struct std::hash<Node> {
     size_t operator()(const Node &node) const {
         return node.pos.x * 3 + node.pos.y * 5 + node.dir.x * 7 + node.dir.y * 11;
     }
@@ -93,16 +91,21 @@ bool isPassable(const Vec &pos, const vector<string> &world) {
         && world[pos.y][pos.x] != '#';
 }
 
-void addPathToSet(const Node &node, unordered_set<Vec> &tiles) {
+void addPathToSet(const Node &node, const unordered_multimap<Node, Node> &parentMap, unordered_set<Vec> &tiles) {
     tiles.insert(node.pos);
-    for (const Node &parent : node.parents) {
-        addPathToSet(parent, tiles);
+
+    auto range { parentMap.equal_range(node) };
+    for (auto it = range.first; it != range.second; it++) {
+        const Node &parent { it->second };
+        addPathToSet(parent, parentMap, tiles);
     }
 }
 
 int countTilesOnBestPath(const Vec &start, const Vec &exit, const vector<string> &world) {
+    unordered_multimap<Node, Node> parentMap;
+
     vector<Node> open;
-    unordered_set<Node, NodeHash> closed;
+    unordered_set<Node> closed;
     open.emplace_back(Node{
             .pos = start,
             .dir = Vec{ 1, 0 },
@@ -117,13 +120,15 @@ int countTilesOnBestPath(const Vec &start, const Vec &exit, const vector<string>
         open.erase(it);
         closed.insert(current);
 
+        /*
         cout << "Current:" << endl;
         cout << "pos: " << current.pos.x << ", " << current.pos.y << endl;
         cout << "dir: " << current.dir.x << ", " << current.dir.y << endl;
         cout << "cost: " << current.cost << endl;
+        */
 
         if (current.pos == exit) {
-            addPathToSet(current, tilesOnBestPath);
+            addPathToSet(current, parentMap, tilesOnBestPath);
             cout << "Found result: " << current.cost
                 << " (current orientation: " << current.dir.x << ", " << current.dir.y << ")"
                 << endl;
@@ -137,12 +142,15 @@ int countTilesOnBestPath(const Vec &start, const Vec &exit, const vector<string>
             auto openDuplicatePtr { find(open.begin(), open.end(), neighbor) };
             if (openDuplicatePtr == open.end()) { // neighbor has no duplicate in open set
                 open.push_back(neighbor);
+                parentMap.insert({neighbor, current});
             } else { // neighbor has an open duplicate
                 Node &duplicate { *openDuplicatePtr };
                 if (duplicate.cost > neighbor.cost) {
                     duplicate = neighbor;
+                    parentMap.erase(duplicate);
+                    parentMap.insert({duplicate, current});
                 } else if (duplicate.cost == neighbor.cost) {
-                    duplicate.parents.push_back(current);
+                    parentMap.insert({duplicate, current});
                 }
             }
         }
