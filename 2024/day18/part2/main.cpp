@@ -38,21 +38,21 @@ const array<Vec, 4> directions {
     Vec{ 0, -1 },
 };
 
-int getStepsToExit(const unordered_set<Vec> &bytePostions) {
-    vector<Vec> open;
+bool isPathBlocked(const unordered_set<Vec> &bytePostions) {
+    unordered_set<Vec> open;
     unordered_set<Vec> closed;
-    open.push_back(Vec {0, 0});
+    open.insert(Vec {0, 0});
 
     int iteration { 0 };
     Vec goal { WIDTH - 1, HEIGHT - 1 };
 
     while (open.size() > 0) {
         iteration++;
-        vector<Vec> newOpen;
+        unordered_set<Vec> newOpen;
 
         for (const Vec current : open) {
             closed.insert(current);
-            if (current == goal) return iteration - 1;
+            if (current == goal) return false;
 
             for (const Vec dir : directions) {
                 Vec neighbor { current + dir };
@@ -60,14 +60,14 @@ int getStepsToExit(const unordered_set<Vec> &bytePostions) {
                 if (neighbor.y < 0 || neighbor.y >= HEIGHT) continue;
                 if (closed.find(neighbor) != closed.end()) continue;
                 if (bytePostions.find(neighbor) != bytePostions.end()) continue;
-                if (find(newOpen.begin(), newOpen.end(), neighbor) != newOpen.end()) continue;
+                if (newOpen.find(neighbor) != newOpen.end()) continue;
 
-                newOpen.push_back(neighbor);
+                newOpen.insert(neighbor);
             }
         }
         open = newOpen;
     }
-    return -1;
+    return true;
 }
 
 int main() {
@@ -78,34 +78,36 @@ int main() {
     }
 
     regex vectorRegex("(\\d+),(\\d+)");
-    unordered_set<Vec> firstBytes;
+    vector<Vec> bytes;
 
     string line;
-    while (getline(inputFile, line) && firstBytes.size() < 1024) {
+    while (getline(inputFile, line)) {
         smatch match;
         if (!regex_match(line, match, vectorRegex)) throw runtime_error("Unable to parse line");
         Vec bytePos {
             .x = stoi(match.str(1)),
             .y = stoi(match.str(2))
         };
-        firstBytes.insert(bytePos);
+        bytes.push_back(bytePos);
     }
 
-    while (getline(inputFile, line)) {
-        cout << "Processing for first " << firstBytes.size() << " bytes." << endl;
-        smatch match;
-        if (!regex_match(line, match, vectorRegex)) throw runtime_error("Unable to parse line");
-        Vec bytePos {
-            .x = stoi(match.str(1)),
-            .y = stoi(match.str(2))
-        };
-        firstBytes.insert(bytePos);
+    // Recherche par dichotomie du byte avec le plus petit indice qui bloque le chemin
+    int highestNonBlockingByte { 1023 }; // On sait que le 1024ème byte (d'indice 1023) ne bloque pas le chemin
+    int lowestBlockingByte { (int) bytes.size() - 1 }; // Le dernier byte bloque forcément le chemin
 
-        int minimumStepCount { getStepsToExit(firstBytes) };
-        if (minimumStepCount == -1) {
-            cout << "Byte blocking path: " << bytePos.x << "," << bytePos.y << endl;
-            return 0;
+    while (highestNonBlockingByte + 1 != lowestBlockingByte) {
+        int middleByte = (highestNonBlockingByte + lowestBlockingByte) / 2;
+        unordered_set<Vec> byteView = { bytes.begin(), bytes.begin() + middleByte };
+
+        cout << "Processing for first " << byteView.size() << " bytes." << endl;
+
+        if (isPathBlocked(byteView)) {
+            lowestBlockingByte = middleByte;
+        } else {
+            highestNonBlockingByte = middleByte;
         }
     }
 
+    Vec blockingByte { bytes[highestNonBlockingByte] };
+    cout << "Byte blocking path: " << blockingByte.x << "," << blockingByte.y << endl;
 }
